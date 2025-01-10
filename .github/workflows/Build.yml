@@ -15,6 +15,7 @@ env:
   TZ: Asia/Shanghai
   DEVICE: x86_64
   UPLOAD_OUTPUT: true
+  NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
 jobs:
   Build-immortalwrt:
@@ -30,21 +31,54 @@ jobs:
       env:
           DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt-get -qq update
-        sudo -E apt-get -qq full-upgrade -y
-        sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-        bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
-        g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
-        libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libpython3-dev libreadline-dev \
-        libssl-dev libtool lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply \
-        python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig libncurses5-dev libncursesw5-dev \
-        texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev openssh-server
+        sudo apt-get -qq update -y
+        sudo apt-get -qq full-upgrade -y
+        sudo apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+          g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5 \
+          libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lld llvm lrzsz mkisofs msmtp \
+          nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip python3-ply \
+          python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig \
+          texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev openssh-server
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-
+      - name: Install ngrok
+        run: |
+          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -xzf ngrok-v3-stable-linux-amd64.tgz
+          sudo mv ngrok /usr/local/bin/
+          rm ngrok-v3-stable-linux-amd64.tgz
+  
+      - name: Configure ngrok auth token
+        run: |
+          ngrok config add-authtoken $NGROK_AUTH_TOKEN
+  
+      - name: Start SSH service
+        run: |
+          sudo service ssh start
+          echo "root:password" | sudo chpasswd
+          sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+  
+      - name: Start ngrok
+        run: |
+          nohup ngrok tcp 22 &> ngrok.log &
+          echo "Started ngrok in background"
+          sleep 10  # Wait for ngrok to start
+          ngrok_url=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+          echo "ngrok URL: $ngrok_url"
+  
+      - name: Add SSH key
+        run: |
+          sudo mkdir -p /root/.ssh
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" | sudo tee /root/.ssh/authorized_keys > /dev/null
+          sudo chmod 700 /root/.ssh
+          sudo chmod 600 /root/.ssh/authorized_keys
+  
     - name: 克隆源码
       working-directory: /workdir
       env:
@@ -66,15 +100,18 @@ jobs:
         echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
+        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
+        ./scripts/feeds install -a
 
     - name: 修改 Lan IP
       run: |
         cd openwrt
         sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generate
+        neofetch
+
     - name: 下载依赖
       run: |
         cd openwrt
-        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
