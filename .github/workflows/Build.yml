@@ -66,8 +66,6 @@ jobs:
         echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
-        ./scripts/feeds install -a
 
     - name: 修改 Lan IP
       run: |
@@ -76,6 +74,7 @@ jobs:
     - name: 下载依赖
       run: |
         cd openwrt
+        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
