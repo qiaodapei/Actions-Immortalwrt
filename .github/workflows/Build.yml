@@ -26,6 +26,7 @@ jobs:
     steps:
     - name: 配置
       uses: actions/checkout@master
+
     - name: 配置环境
       env:
           DEBIAN_FRONTEND: noninteractive
@@ -45,6 +46,7 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+        
       - name: Install ngrok
         run: |
           wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
