@@ -15,7 +15,6 @@ env:
   TZ: Asia/Shanghai
   DEVICE: x86_64
   UPLOAD_OUTPUT: true
-  NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
 jobs:
   Build-immortalwrt:
@@ -26,14 +25,14 @@ jobs:
     steps:
     - name: 配置
       uses: actions/checkout@master
-
+    
     - name: 配置环境
       env:
           DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo apt-get -qq update -y
-        sudo apt-get -qq full-upgrade -y
-        sudo apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq full-upgrade -y
+        sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
         bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
         g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
         libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5 \
@@ -46,40 +45,7 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-        
-      - name: Install ngrok
-        run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xzf ngrok-v3-stable-linux-amd64.tgz
-          sudo mv ngrok /usr/local/bin/
-          rm ngrok-v3-stable-linux-amd64.tgz
-  
-    - name: Configure ngrok auth token
-      run: |
-        ngrok config add-authtoken $NGROK_AUTH_TOKEN
 
-    - name: Start SSH service
-      run: |
-        sudo service ssh start
-        echo "root:password" | sudo chpasswd
-        sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-        sudo systemctl restart ssh
-
-    - name: Start ngrok
-      run: |
-        nohup ngrok tcp 22 &> ngrok.log &
-        echo "Started ngrok in background"
-        sleep 10  # Wait for ngrok to start
-        ngrok_url=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-        echo "ngrok URL: $ngrok_url"
-
-    - name: Add SSH key
-      run: |
-        sudo mkdir -p /root/.ssh
-        echo "${{ secrets.SSH_PUBLIC_KEY }}" | sudo tee /root/.ssh/authorized_keys > /dev/null
-        sudo chmod 700 /root/.ssh
-        sudo chmod 600 /root/.ssh/authorized_keys
-  
     - name: 克隆源码
       working-directory: /workdir
       env:
