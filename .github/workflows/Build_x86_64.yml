@@ -69,7 +69,6 @@ jobs:
 
     - name: 配置 Feeds
       run: |
-        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
         cd openwrt
         echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
         echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
