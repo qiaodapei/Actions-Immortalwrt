@@ -1,12 +1,15 @@
-name: Build
+name: Build x86_64 immortalwrt
 
 on:
+  repository_dispatch:
   workflow_dispatch:
     inputs:
-      REPO_URL:
-        description: 'OpenWrt source repository branch (e.g., v23.05.4)'
-        required: true
-        default: 'v23.05.4'
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: 43 5 * * *
 
 env:
   NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
@@ -27,39 +30,13 @@ jobs:
     - name: 配置
       uses: actions/checkout@master
 
-    - name: Install ngrok
-      run: |
-        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-        tar -xzf ngrok-v3-stable-linux-amd64.tgz
-        sudo mv ngrok /usr/local/bin/
-        rm ngrok-v3-stable-linux-amd64.tgz
+    - name: Setup SSH tunnel
+      uses: qiaodapei/github-ngrok-ssh@main
+      with:
+        timeout: 6h
+        ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        ngrok_token: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Configure ngrok auth token
-      run: |
-        ngrok config add-authtoken $NGROK_AUTH_TOKEN
-
-    - name: Start SSH service
-      run: |
-        sudo service ssh start
-        echo "root:password" | sudo chpasswd
-        sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-        sudo systemctl restart ssh
-
-    - name: Start ngrok
-      run: |
-        nohup ngrok tcp 22 &> ngrok.log &
-        echo "Started ngrok in background"
-        sleep 10  # Wait for ngrok to start
-        ngrok_url=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-        echo "ngrok URL: $ngrok_url"
-
-    - name: Add SSH key
-      run: |
-        sudo mkdir -p /root/.ssh
-        echo "${{ secrets.SSH_PUBLIC_KEY }}" | sudo tee /root/.ssh/authorized_keys > /dev/null
-        sudo chmod 700 /root/.ssh
-        sudo chmod 600 /root/.ssh/authorized_keys
-    
     - name: 配置环境
       env:
           DEBIAN_FRONTEND: noninteractive
@@ -103,7 +80,7 @@ jobs:
         echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        cp -f $GITHUB_WORKSPACE/.config $GITHUB_WORKSPACE/openwrt/
+        cp -f $GITHUB_WORKSPACE/config/x86_64.config $GITHUB_WORKSPACE/openwrt/.config
         ./scripts/feeds install -a
 
     - name: 修改 Lan IP
