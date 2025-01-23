@@ -22,7 +22,7 @@ env:
   UPLOAD_OUTPUT: true
 
 jobs:
-  Build-immortalwrt:
+   Build-x86_64-immortalwrt:
     runs-on: ubuntu-latest
     permissions:
       contents: write
