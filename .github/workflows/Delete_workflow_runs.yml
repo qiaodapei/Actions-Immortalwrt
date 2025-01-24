@@ -8,7 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Delete-old-workflow-runs
+name: Delete old workflow runs
 on:
   repository_dispatch:
   workflow_dispatch:
