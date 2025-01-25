@@ -23,8 +23,8 @@ env:
 
 jobs:
   Build-x86_64-immortalwrt:
-    # runs-on: ubuntu-latest
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
+    # runs-on: [self-hosted, linux, x64]
     permissions:
       contents: write
 
@@ -124,8 +124,8 @@ jobs:
           
           IP: 192.168.2.1 | Password: none
 
-    - name: Keep ngrok running
-      if: always()
-      run: |
-        sleep 43200  # Sleep for 12 hours (43200 seconds)
+    # - name: Keep ngrok running
+    #   if: always()
+    #   run: |
+    #     sleep 43200  # Sleep for 12 hours (43200 seconds)
         pkill ngrok  # Kill the ngrok process after 12 hours   
