@@ -121,19 +121,19 @@ jobs:
         openwrt_size: 820
         build_date: ${{ env.build_date }}
 
-     - name: Organize files
-       run: |
-        echo '
-        默认 IP：192.168.1.1  /  默认密码：password  /  使用说明：[README](https://github.com/ffuqiangg/build_openwrt/blob/main/doc/readme.md)' > release.md
-        rm -rf ./artifact/
-        mkdir -p ./artifact/
-        cp ${{ env.PACKAGED_OUTPUTPATH }}/*.img.gz ./artifact/
-        cd ./artifact/
-        zip N1-ImmortalWrt-${{ env.latest_release }}-${{ env.build_date }}.zip *.img.gz
-        echo "prerelease_symbol=true" >> ${GITHUB_ENV}
-        if [[ "${{ github.event_name }}" == 'repository_dispatch' ]]; then
-          echo "prerelease_symbol=false" >> ${GITHUB_ENV}
-        fi
+    - name: Organize files
+      run: |
+      echo '
+      默认 IP：192.168.1.1  /  默认密码：password  /  使用说明：[README](https://github.com/ffuqiangg/build_openwrt/blob/main/doc/readme.md)' > release.md
+      rm -rf ./artifact/
+      mkdir -p ./artifact/
+      cp ${{ env.PACKAGED_OUTPUTPATH }}/*.img.gz ./artifact/
+      cd ./artifact/
+      zip N1-ImmortalWrt-${{ env.latest_release }}-${{ env.build_date }}.zip *.img.gz
+      echo "prerelease_symbol=true" >> ${GITHUB_ENV}
+      if [[ "${{ github.event_name }}" == 'repository_dispatch' ]]; then
+        echo "prerelease_symbol=false" >> ${GITHUB_ENV}
+      fi
 
     - name: Upload firmware to release
       uses: ncipollo/release-action@main
@@ -155,14 +155,14 @@ jobs:
     #       # 未测试×
           
     #       IP: 192.168.2.1 | Password: none
-    # - name: 删除旧的工作流和固件
-    #   uses: Mattraks/delete-workflow-runs@main
-    #   with:
-    #     token: ${{ secrets.ACTIONS_RELEASE }}
-    #     repository: ${{ github.repository }}
-    #     delete_workflow_pattern: Build x86_64 immortalwrt
-    #     retain_days: 0
-    #     keep_minimum_runs: 1
+    - name: 删除旧的工作流和固件
+      uses: Mattraks/delete-workflow-runs@main
+      with:
+        token: ${{ secrets.ACTIONS_RELEASE }}
+        repository: ${{ github.repository }}
+        delete_workflow_pattern: Build x86_64 immortalwrt
+        retain_days: 0
+        keep_minimum_runs: 1
 
     - name: Keep ngrok running
       if: always()
