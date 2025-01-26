@@ -22,7 +22,7 @@ env:
   UPLOAD_OUTPUT: true
 
 jobs:
-  Build-x86_64-immortalwrt:
+  Build-Phicomm-n1-immortalwrt:
     runs-on: ubuntu-latest
     # runs-on: [self-hosted, linux, x64]
     permissions:
@@ -160,7 +160,7 @@ jobs:
       with:
         token: ${{ secrets.ACTIONS_RELEASE }}
         repository: ${{ github.repository }}
-        delete_workflow_pattern: Build x86_64 immortalwrt
+        delete_workflow_pattern: Build Phicomm n1 immortalwrt
         retain_days: 0
         keep_minimum_runs: 1
 
