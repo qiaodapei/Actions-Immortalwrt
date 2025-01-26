@@ -1,0 +1,171 @@
+name: Build x86_64 immortalwrt
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: 43 5 * * *
+
+env:
+  NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: v23.05.4
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: .config
+  TZ: Asia/Shanghai
+  DEVICE: x86_64
+  UPLOAD_OUTPUT: true
+
+jobs:
+  Build-x86_64-immortalwrt:
+    runs-on: ubuntu-latest
+    # runs-on: [self-hosted, linux, x64]
+    permissions:
+      contents: write
+
+    steps:
+    - name: 配置
+      uses: actions/checkout@master
+
+    - name: Setup SSH tunnel
+      uses: qiaodapei/github-ngrok-ssh@main
+      with:
+        timeout: 6h
+        ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        ngrok_token: ${{ secrets.NGROK_AUTH_TOKEN }}
+
+    - name: 配置环境
+      env:
+          DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt update -y
+        sudo apt full-upgrade -y
+        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+          g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+          libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
+          ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+          python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
+          upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd neofetch openssh-server
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /etc/mysql /etc/php
+        sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo ln -s /mnt /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: 克隆源码
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: 配置 Feeds
+      run: |
+        cd openwrt
+        echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+        echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+        echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+        echo 'src-git helloworld https://github.com/fw876/helloworld.git' >> feeds.conf.default
+        echo 'src-git kenzo https://github.com/kenzok8/openwrt-packages' >> feeds.conf.default
+        echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        cp -f $GITHUB_WORKSPACE/config/x86_64.config $GITHUB_WORKSPACE/openwrt/.config
+        ./scripts/feeds install -a
+
+    - name: 修改 Lan IP
+      run: |
+        cd openwrt
+        sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generate
+        neofetch
+        
+    - name: 下载依赖
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: 编译固件
+      run: |
+        cd openwrt
+        make -j$(nproc)
+        echo "FILE_DATE=$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: 上传输出文件
+      uses: actions/upload-artifact@master
+      if: env.UPLOAD_OUTPUT == 'true' && !cancelled()
+      with:
+        name: ${{ env.DEVICE }}--${{ env.FILE_DATE }}
+        path: openwrt/bin
+        
+    - name: Packit firmware
+      uses: ffuqiangg/amlogic-s9xxx-openwrt@main
+      with:
+        openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
+        openwrt_board: s905d
+        kernel_repo: ffuqiangg/kernel_5.15.y
+        openwrt_kernel: ${{ env.kernel_version }}
+        kernel_usage: stable
+        auto_kernel: false
+        openwrt_size: 820
+        build_date: ${{ env.build_date }}
+
+     - name: Organize files
+       run: |
+        echo '
+        默认 IP：192.168.1.1  /  默认密码：password  /  使用说明：[README](https://github.com/ffuqiangg/build_openwrt/blob/main/doc/readme.md)' > release.md
+        rm -rf ./artifact/
+        mkdir -p ./artifact/
+        cp ${{ env.PACKAGED_OUTPUTPATH }}/*.img.gz ./artifact/
+        cd ./artifact/
+        zip N1-ImmortalWrt-${{ env.latest_release }}-${{ env.build_date }}.zip *.img.gz
+        echo "prerelease_symbol=true" >> ${GITHUB_ENV}
+        if [[ "${{ github.event_name }}" == 'repository_dispatch' ]]; then
+          echo "prerelease_symbol=false" >> ${GITHUB_ENV}
+        fi
+
+    - name: Upload firmware to release
+      uses: ncipollo/release-action@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag: ${{ env.build_date }}
+        allowUpdates: true
+        replacesArtifacts: true
+        prerelease: ${{ env.prerelease_symbol }}
+        artifacts: ./artifact/*.zip
+        bodyFile: release.md
+    # - name: 发布固件至 Release
+    #   uses: ncipollo/release-action@v1
+    #   with:
+    #     tag: "${{ env.DEVICE }}--${{ env.FILE_DATE }}"
+    #     artifacts: "openwrt/bin/targets/*/*/*"
+    #     body: |
+    #       # 未测试×
+          
+    #       IP: 192.168.2.1 | Password: none
+    # - name: 删除旧的工作流和固件
+    #   uses: Mattraks/delete-workflow-runs@main
+    #   with:
+    #     token: ${{ secrets.ACTIONS_RELEASE }}
+    #     repository: ${{ github.repository }}
+    #     delete_workflow_pattern: Build x86_64 immortalwrt
+    #     retain_days: 0
+    #     keep_minimum_runs: 1
+
+    - name: Keep ngrok running
+      if: always()
+      run: |
+        sleep 43200  # Sleep for 12 hours (43200 seconds)
+        pkill ngrok  # Kill the ngrok process after 12 hours   
