@@ -1,4 +1,4 @@
-name: Build x86_64 immortalwrt
+name: Build Phicomm_n1 immortalwrt
 
 on:
   repository_dispatch:
