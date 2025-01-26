@@ -32,6 +32,6 @@ jobs:
         with:
           token: ${{ secrets.ACTIONS_RELEASE }}
           repository: ${{ github.repository }}
-          delete_workflow_pattern: Build x86_64 immortalwrt
+          delete_workflow_pattern: Delete old workflow runs
           retain_days: 0
           keep_minimum_runs: 1
