@@ -18,7 +18,7 @@ env:
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   TZ: Asia/Shanghai
-  DEVICE: x86_64
+  DEVICE: armv8
   UPLOAD_OUTPUT: true
 
 jobs:
@@ -105,7 +105,7 @@ jobs:
       uses: actions/upload-artifact@master
       if: env.UPLOAD_OUTPUT == 'true' && !cancelled()
       with:
-        name: ${{ env.DEVICE }}--${{ env.FILE_DATE }}
+        name: ${{ env.DEVICE }}${{ env.FILE_DATE }}
         path: openwrt/bin
         
     - name: Packit firmware
