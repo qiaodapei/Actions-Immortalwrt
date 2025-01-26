@@ -79,7 +79,7 @@ jobs:
         echo 'src-git small https://github.com/kenzok8/small' >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        cp -f $GITHUB_WORKSPACE/config/x86_64.config $GITHUB_WORKSPACE/openwrt/.config
+        cp -f $GITHUB_WORKSPACE/config/Phicomm_n1.config $GITHUB_WORKSPACE/openwrt/.config
         ./scripts/feeds install -a
 
     - name: 修改 Lan IP
