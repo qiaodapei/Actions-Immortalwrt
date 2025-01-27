@@ -82,7 +82,6 @@ jobs:
         sed -i '8i src-git nas https://github.com/linkease/nas-packages.git;master' feeds.conf.default
         sed -i '9i src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' feeds.conf.default
         sed -i '10i src-git kenzo https://github.com/kenzok8/openwrt-packages' feeds.conf.default
-
         ./scripts/feeds update -a
         ./scripts/feeds install -a
         cp -f $GITHUB_WORKSPACE/config/Phicomm_n1.config $GITHUB_WORKSPACE/openwrt/.config
