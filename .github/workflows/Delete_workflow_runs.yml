@@ -8,17 +8,17 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Delete old workflow runs
-on:
-  repository_dispatch:
-  workflow_dispatch:
-    inputs:
-      ssh:
-        description: 'SSH connection to Actions'
-        required: false
-        default: 'false'
-  schedule:
-    - cron: 43 5 * * *
+# name: Delete old workflow runs
+# on:
+#   repository_dispatch:
+#   workflow_dispatch:
+#     inputs:
+#       ssh:
+#         description: 'SSH connection to Actions'
+#         required: false
+#         default: 'false'
+#   schedule:
+#     - cron: 43 5 * * *
 
 jobs:
   del_runs:
